@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voice Transcriber</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        margin: 0;
+        padding: 40px 20px;
+        background: #f5f5f5;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        padding: 32px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+      h1 { margin: 0 0 8px 0; color: #1a1a1a; font-size: 24px; }
+      .subtitle { color: #666; margin: 0 0 24px 0; font-size: 14px; }
+      .upload-area {
+        border: 2px dashed #ddd;
+        border-radius: 8px;
+        padding: 40px 20px;
+        text-align: center;
+        margin-bottom: 16px;
+        transition: all 0.2s;
+        cursor: pointer;
+      }
+      .upload-area:hover, .upload-area.dragover {
+        border-color: #0066cc;
+        background: #f0f7ff;
+      }
+      .upload-area input { display: none; }
+      .upload-icon { font-size: 48px; margin-bottom: 12px; }
+      .upload-text { color: #666; margin-bottom: 8px; }
+      .upload-hint { color: #999; font-size: 12px; }
+      .file-info {
+        background: #f0f7ff;
+        border: 1px solid #cce0ff;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        display: none;
+      }
+      .file-info.visible {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .file-name { font-weight: 500; color: #0066cc; }
+      .file-size { color: #666; font-size: 14px; }
+      .clear-btn {
+        background: none;
+        border: none;
+        color: #cc0000;
+        cursor: pointer;
+        font-size: 18px;
+      }
+      button.transcribe-btn {
+        width: 100%;
+        padding: 14px 24px;
+        font-size: 16px;
+        font-weight: 600;
+        background: #0066cc;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      button.transcribe-btn:hover:not(:disabled) { background: #0052a3; }
+      button.transcribe-btn:disabled { background: #ccc; cursor: not-allowed; }
+      .status {
+        margin-top: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        text-align: center;
+        display: none;
+      }
+      .status.visible { display: block; }
+      .status.loading { background: #fff3cd; color: #856404; }
+      .status.success { background: #d4edda; color: #155724; }
+      .status.error { background: #f8d7da; color: #721c24; }
+      .result-area { margin-top: 24px; display: none; }
+      .result-area.visible { display: block; }
+      .result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .result-header h2 { margin: 0; font-size: 18px; color: #1a1a1a; }
+      .result-actions { display: flex; gap: 8px; }
+      .result-actions button {
+        padding: 8px 16px;
+        font-size: 14px;
+        border: 1px solid #ddd;
+        background: white;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .result-actions button:hover { background: #f5f5f5; border-color: #ccc; }
+      textarea {
+        width: 100%;
+        height: 300px;
+        padding: 16px;
+        font-family: inherit;
+        font-size: 14px;
+        line-height: 1.6;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        resize: vertical;
+      }
+      textarea:focus { outline: none; border-color: #0066cc; }
+      .warning {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 24px;
+        font-size: 14px;
+        color: #856404;
+      }
+      .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #856404;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎙️ Voice Transcriber</h1>
+      <p class="subtitle">Upload audio files and get instant transcriptions using OpenAI Whisper</p>
+      
+      <div class="warning">
+        <strong>File size limit:</strong> Maximum 25 MB per file. For longer recordings, trim to ~15 minutes first.
+      </div>
+
+      <div class="upload-area" id="uploadArea">
+        <input type="file" id="fileInput" accept=".m4a,.mp3,.wav,.mp4,.webm,.ogg,.flac" />
+        <div class="upload-icon">📁</div>
+        <div class="upload-text">Click to upload or drag and drop</div>
+        <div class="upload-hint">Supports: M4A, MP3, WAV, MP4, WebM, OGG, FLAC</div>
+      </div>
+
+      <div class="file-info" id="fileInfo">
+        <div>
+          <div class="file-name" id="fileName"></div>
+          <div class="file-size" id="fileSize"></div>
+        </div>
+        <button class="clear-btn" id="clearBtn" title="Remove file">✕</button>
+      </div>
+
+      <button class="transcribe-btn" id="transcribeBtn" disabled>Transcribe</button>
+
+      <div class="status" id="status"></div>
+
+      <div class="result-area" id="resultArea">
+        <div class="result-header">
+          <h2>Transcript</h2>
+          <div class="result-actions">
+            <button id="copyBtn">📋 Copy</button>
+            <button id="downloadBtn">💾 Download</button>
+          </div>
+        </div>
+        <textarea id="transcript" placeholder="Transcript will appear here..."></textarea>
+      </div>
+    </div>
+
+    <script>
+      const uploadArea = document.getElementById('uploadArea');
+      const fileInput = document.getElementById('fileInput');
+      const fileInfo = document.getElementById('fileInfo');
+      const fileName = document.getElementById('fileName');
+      const fileSize = document.getElementById('fileSize');
+      const clearBtn = document.getElementById('clearBtn');
+      const transcribeBtn = document.getElementById('transcribeBtn');
+      const status = document.getElementById('status');
+      const resultArea = document.getElementById('resultArea');
+      const transcript = document.getElementById('transcript');
+      const copyBtn = document.getElementById('copyBtn');
+      const downloadBtn = document.getElementById('downloadBtn');
+
+      let selectedFile = null;
+
+      uploadArea.addEventListener('click', () => fileInput.click());
+      
+      uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+      });
+      
+      uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+      });
+      
+      uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+          handleFile(e.dataTransfer.files[0]);
+        }
+      });
+
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) {
+          handleFile(fileInput.files[0]);
+        }
+      });
+
+      clearBtn.addEventListener('click', clearFile);
+
+      function handleFile(file) {
+        const maxSize = 25 * 1024 * 1024;
+        
+        if (file.size > maxSize) {
+          showStatus('error', `File too large (${formatSize(file.size)}). Maximum is 25 MB.`);
+          return;
+        }
+
+        selectedFile = file;
+        fileName.textContent = file.name;
+        fileSize.textContent = formatSize(file.size);
+        fileInfo.classList.add('visible');
+        transcribeBtn.disabled = false;
+        status.classList.remove('visible');
+      }
+
+      function clearFile() {
+        selectedFile = null;
+        fileInput.value = '';
+        fileInfo.classList.remove('visible');
+        transcribeBtn.disabled = true;
+      }
+
+      function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+      }
+
+      function showStatus(type, message) {
+        status.className = 'status visible ' + type;
+        status.innerHTML = type === 'loading' 
+          ? '<span class="spinner"></span>' + message 
+          : message;
+      }
+
+      transcribeBtn.addEventListener('click', async () => {
+        if (!selectedFile) return;
+
+        transcribeBtn.disabled = true;
+        resultArea.classList.remove('visible');
+        showStatus('loading', 'Uploading and transcribing... This may take a minute.');
+
+        const formData = new FormData();
+        formData.append('audio', selectedFile, selectedFile.name);
+
+        try {
+          const response = await fetch('/.netlify/functions/transcribe', {
+            method: 'POST',
+            body: formData
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || `HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+          
+          if (data.text) {
+            transcript.value = data.text;
+            resultArea.classList.add('visible');
+            showStatus('success', 'Transcription complete!');
+          } else {
+            throw new Error('No transcript returned');
+          }
+        } catch (error) {
+          showStatus('error', 'Error: ' + error.message);
+        } finally {
+          transcribeBtn.disabled = false;
+        }
+      });
+
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(transcript.value);
+          copyBtn.textContent = '✓ Copied!';
+          setTimeout(() => copyBtn.textContent = '📋 Copy', 2000);
+        } catch {
+          transcript.select();
+          document.execCommand('copy');
+          copyBtn.textContent = '✓ Copied!';
+          setTimeout(() => copyBtn.textContent = '📋 Copy', 2000);
+        }
+      });
+
+      downloadBtn.addEventListener('click', () => {
+        const baseName = selectedFile?.name.replace(/\.[^.]+$/, '') || 'transcript';
+        const blob = new Blob([transcript.value], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = baseName + '_transcript.txt';
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    </script>
+  </body>
+</html>
