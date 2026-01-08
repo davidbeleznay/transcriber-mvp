@@ -1,0 +1,20 @@
+{
+  "name": "transcriber-mvp",
+  "version": "1.0.0",
+  "description": "Simple voice transcription tool using OpenAI Whisper API",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "netlify dev"
+  },
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "openai": "^4.73.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
