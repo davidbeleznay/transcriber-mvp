@@ -2,13 +2,8 @@
   publish = "."
   functions = "netlify/functions"
 
-[functions]
-  timeout = 26
+[functions."transcribe"]
+  schedule = ""
 
 [dev]
   framework = "#static"
-
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
